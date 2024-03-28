@@ -1,10 +1,8 @@
-use std::fs;
+use std::{fs, path::Path};
 
 use crate::egui::{Color32, Rounding, Stroke};
-use eframe::{
-    egui::{self},
-    CreationContext,
-};
+use directories::ProjectDirs;
+use eframe::{egui, CreationContext};
 use serde::{Deserialize, Serialize};
 mod submodules;
 
@@ -19,19 +17,12 @@ impl Default for FlasherPrefs {
     }
 }
 
+#[derive(Default)]
 struct FlasherData {
     device: (String, String, u64),
     logs: String,
     devices: Vec<(String, String, u64)>,
-}
-impl Default for FlasherData {
-    fn default() -> Self {
-        Self {
-            device: (String::new(), String::new(), 0),
-            logs: String::new(),
-            devices: vec![],
-        }
-    }
+    quilloadavailable: bool,
 }
 
 #[derive(Default)]
@@ -42,68 +33,16 @@ struct Flasher {
 
 impl Flasher {
     fn new(cc: &CreationContext) -> Flasher {
-        let mut style: egui::Style = (*cc.egui_ctx.style()).clone();
-        style.spacing.item_spacing = egui::vec2(5.0, 10.0);
-
-        cc.egui_ctx.set_style(style);
-        let new_style = egui::style::WidgetVisuals {
-            bg_fill: Color32::from_rgb(17, 17, 17),
-            weak_bg_fill: Color32::from_rgb(17, 17, 17),
-
-            rounding: Rounding {
-                nw: 4.,
-                ne: 4.,
-                sw: 4.,
-                se: 4.,
-            },
-
-            bg_stroke: Stroke {
-                width: 1.,
-                color: Color32::from_rgb(140, 140, 140),
-            },
-            fg_stroke: Stroke {
-                width: 1.,
-                color: Color32::from_rgb(140, 140, 140),
-            },
-
-            expansion: 2.,
-        };
-        let new_hovered_style = egui::style::WidgetVisuals {
-            bg_fill: Color32::from_rgb(17, 17, 17),
-            weak_bg_fill: Color32::from_rgb(17, 17, 17),
-
-            rounding: Rounding {
-                nw: 4.,
-                ne: 4.,
-                sw: 4.,
-                se: 4.,
-            },
-
-            bg_stroke: Stroke {
-                width: 1.5,
-                color: egui::Color32::from_rgb(56, 55, 55),
-            },
-            fg_stroke: Stroke {
-                width: 1.,
-                color: Color32::from_rgb(140, 140, 140),
-            },
-
-            expansion: 2.,
-        };
-        cc.egui_ctx.set_visuals(egui::style::Visuals {
-            widgets: egui::style::Widgets {
-                active: new_style,
-                inactive: new_style,
-                hovered: new_hovered_style,
-                noninteractive: new_style,
-                open: new_hovered_style,
-            },
-            ..Default::default()
-        });
+        // apply egui styling
+        apply_styling(cc);
 
         // load user preferences
         let saved_prefs: FlasherPrefs =
             confy::load("QuillWrite", Some("user_preferences")).unwrap_or_default();
+
+        if !saved_prefs.dark_mode {
+            cc.egui_ctx.set_visuals(egui::Visuals::light());
+        }
 
         let mut data = FlasherData::default();
 
@@ -116,17 +55,32 @@ impl Flasher {
             data.devices.push((
                 device.to_string(),
                 info["deviceName"].to_string(),
-                info["productId"].as_u64().expect("Json file has invalid data"),
+                info["productId"]
+                    .as_u64()
+                    .expect("Json file has invalid data"),
             ));
         }
-        if !saved_prefs.dark_mode {
-            cc.egui_ctx.set_visuals(egui::Visuals::light());
+
+        if let Some(prodirs) = ProjectDirs::from("com", "Quill", "QuillWrite") {
+            let cache_dir = prodirs.cache_dir();
+            if Path::new(cache_dir).join("quilload").exists() {
+                println!("It exists.");
+                data.quilloadavailable = true;
+            } else if Path::new(cache_dir).exists() {
+                data.quilloadavailable = false;
+            } else {
+                if fs::create_dir_all(prodirs.cache_dir()).is_err() {
+                    data.logs
+                        .push_str("QuillWrite: Could not make cache directory.\n")
+                }
+                data.quilloadavailable = false;
+            }
         }
 
         Flasher::configure_fonts(cc);
         Flasher {
             prefs: saved_prefs,
-            data: data,
+            data,
         }
     }
 }
@@ -137,8 +91,8 @@ impl eframe::App for Flasher {
         ctx.request_repaint();
         ctx.set_pixels_per_point(1.8);
 
-        Flasher::render_header(self, &ctx);
-        Flasher::render_main_panel(self, &ctx);
+        Flasher::render_header(self, ctx);
+        Flasher::render_main_panel(self, ctx);
     }
 }
 
@@ -158,4 +112,65 @@ fn main() {
         Box::new(|cc| Box::new(Flasher::new(cc))),
     )
     .expect("Could not launch eframe, you may have a driver error.");
+}
+
+fn apply_styling(cc: &CreationContext) {
+    let mut style: egui::Style = (*cc.egui_ctx.style()).clone();
+    style.spacing.item_spacing = egui::vec2(5.0, 10.0);
+
+    cc.egui_ctx.set_style(style);
+    let new_style = egui::style::WidgetVisuals {
+        bg_fill: Color32::from_rgb(17, 17, 17),
+        weak_bg_fill: Color32::from_rgb(17, 17, 17),
+
+        rounding: Rounding {
+            nw: 4.,
+            ne: 4.,
+            sw: 4.,
+            se: 4.,
+        },
+
+        bg_stroke: Stroke {
+            width: 1.,
+            color: Color32::from_rgb(140, 140, 140),
+        },
+        fg_stroke: Stroke {
+            width: 1.,
+            color: Color32::from_rgb(140, 140, 140),
+        },
+
+        expansion: 2.,
+    };
+    let new_hovered_style = egui::style::WidgetVisuals {
+        bg_fill: Color32::from_rgb(17, 17, 17),
+        weak_bg_fill: Color32::from_rgb(17, 17, 17),
+
+        rounding: Rounding {
+            nw: 4.,
+            ne: 4.,
+            sw: 4.,
+            se: 4.,
+        },
+
+        bg_stroke: Stroke {
+            width: 1.5,
+            color: egui::Color32::from_rgb(56, 55, 55),
+        },
+        fg_stroke: Stroke {
+            width: 1.,
+            color: Color32::from_rgb(140, 140, 140),
+        },
+
+        expansion: 2.,
+    };
+    cc.egui_ctx.set_visuals(egui::style::Visuals {
+        widgets: egui::style::Widgets {
+            active: new_style,
+            inactive: new_style,
+            hovered: new_hovered_style,
+            noninteractive: new_style,
+            open: new_hovered_style,
+        },
+        ..Default::default()
+    });
 }

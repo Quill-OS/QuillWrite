@@ -32,7 +32,8 @@ impl Flasher {
                 });
 
                 if ui.button("Print device list to console.").clicked() {
-                    println!("{:?}", self.data.devices)
+                    println!("{:?}", self.data.devices);
+                    println!("{:?}", self.data.device)
                 }
                 if ui.button("Print mtp devices to console.").clicked() {
                     Flasher::transmit_payload(self);

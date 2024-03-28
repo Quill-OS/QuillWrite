@@ -26,13 +26,16 @@ impl Flasher {
                             ctx.set_visuals(egui::Visuals::dark());
                         }
                         self.prefs.dark_mode = !self.prefs.dark_mode;
-                        if let Err(..) = confy::store(
+
+                        if confy::store(
                             "QuillWrite",
                             Some("userpreferences"),
                             FlasherPrefs {
                                 dark_mode: self.prefs.dark_mode,
                             },
-                        ) {
+                        )
+                        .is_err()
+                        {
                             self.data
                                 .logs
                                 .push_str("QuillWrite : Failed to save the app state.")
