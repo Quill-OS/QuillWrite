@@ -20,15 +20,15 @@ impl Default for FlasherPrefs {
 }
 
 struct FlasherData {
-    device: (String, String),
+    device: (String, String, u64),
     logs: String,
-    devices: Vec<(String, String)>,
+    devices: Vec<(String, String, u64)>,
 }
 impl Default for FlasherData {
     fn default() -> Self {
         Self {
-            device: ("".to_string(), "".to_string()),
-            logs: "".to_string(),
+            device: (String::new(), String::new(), 0),
+            logs: String::new(),
             devices: vec![],
         }
     }
@@ -112,8 +112,12 @@ impl Flasher {
         let json: serde_json::Value =
             serde_json::from_str(&device_list).expect("JSON does not have correct format.");
 
-        for (key, value) in json.as_object().unwrap() {
-            data.devices.push((key.to_string(), value.to_string()));
+        for (device, info) in json.as_object().unwrap() {
+            data.devices.push((
+                device.to_string(),
+                info["deviceName"].to_string(),
+                info["productId"].as_u64().expect("Json file has invalid data"),
+            ));
         }
         if !saved_prefs.dark_mode {
             cc.egui_ctx.set_visuals(egui::Visuals::light());

@@ -20,10 +20,11 @@ impl Flasher {
                     egui::ComboBox::from_label(" ")
                         .selected_text(&self.data.device.1)
                         .show_ui(ui, |ui| {
-                            for (model_number, device_name) in self.data.devices.clone() {
+                            for (model_number, device_name, product_id) in self.data.devices.clone()
+                            {
                                 ui.selectable_value(
                                     &mut self.data.device,
-                                    (model_number, device_name.clone()),
+                                    (model_number, device_name.clone(), product_id),
                                     device_name,
                                 );
                             }
@@ -32,6 +33,9 @@ impl Flasher {
 
                 if ui.button("Print device list to console.").clicked() {
                     println!("{:?}", self.data.devices)
+                }
+                if ui.button("Print mtp devices to console.").clicked() {
+                    Flasher::transmit_payload(self);
                 }
             });
         });

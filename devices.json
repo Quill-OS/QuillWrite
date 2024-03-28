@@ -1,10 +1,44 @@
 {
-    "N705":"Kobo Mini",
-    "N905B":"Kobo Touch B",
-    "N905C":"Kobo Touch C",
-    "N613":"Kobo Glo",
-    "N236":"Kobo Aura SE",
-    "N437":"Kobo Glo HD",
-    "N306A":"Kobo Nia model A",
-    "N306C":"Kobo Nia model C"
+    "N705": {
+        "deviceName":"Kobo Mini",
+        "productId":4183
+    },
+    "N905B": {
+
+        "deviceName":"Kobo Touch B",
+        "productId":4163
+    },
+    "N905C": {
+
+        "deviceName":"Kobo Touch C",
+        "productId":4163
+    },
+    "N613": {
+
+        "deviceName":"Kobo Glo",
+        "productId":4173
+    },
+    "N236": {
+
+        "deviceName":"Kobo Aura SE",
+        "productId":4226
+    },
+    "N437": {
+
+        "deviceName":"Kobo Glo HD",
+        "productId":4223
+    },
+    "N306A": {
+
+        "deviceName":"Kobo Nia model A",
+        "productId":4230
+    },
+    "N306C": {
+        "deviceName":"Kobo Nia model C",
+        "productId":4230
+    },
+    "FLAME": { 
+        "deviceName":"Google Pixel 4 (for testing only)",
+        "productId":20193
+    }
 }
