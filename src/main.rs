@@ -1,7 +1,6 @@
 use std::{fs, path::Path};
 
 use crate::egui::{Color32, Rounding, Stroke};
-use directories::ProjectDirs;
 use eframe::{egui, CreationContext};
 use serde::{Deserialize, Serialize};
 mod submodules;
@@ -61,21 +60,33 @@ impl Flasher {
             ));
         }
 
-        if let Some(prodirs) = ProjectDirs::from("com", "Quill", "QuillWrite") {
-            let cache_dir = prodirs.cache_dir();
-            if Path::new(cache_dir).join("quilload").exists() {
-                println!("It exists.");
+        let cache_dir = Path::new(&dirs::cache_dir().unwrap()).join("QuillWrite");
+        let quilload_path = cache_dir.join("quilload");
+        if cache_dir.exists() {
+            if quilload_path.exists() {
                 data.quilloadavailable = true;
-            } else if Path::new(cache_dir).exists() {
-                data.quilloadavailable = false;
             } else {
-                if fs::create_dir_all(prodirs.cache_dir()).is_err() {
-                    data.logs
-                        .push_str("QuillWrite: Could not make cache directory.\n")
-                }
                 data.quilloadavailable = false;
             }
+        } else {
+            let _ = fs::create_dir_all(cache_dir);
+            data.quilloadavailable = false;
         }
+        // if let Some(prodirs) = ProjectDirs::from("com", "Quill", "QuillWrite") {
+        //     let cache_dir = prodirs.cache_dir();
+        //     if Path::new(cache_dir).join("quilload").exists() {
+        //         println!("It exists.");
+        //         data.quilloadavailable = true;
+        //     } else if Path::new(cache_dir).exists() {
+        //         data.quilloadavailable = false;
+        //     } else {
+        //         if fs::create_dir_all(prodirs.cache_dir()).is_err() {
+        //             data.logs
+        //                 .push_str("QuillWrite: Could not make cache directory.\n")
+        //         }
+        //         data.quilloadavailable = false;
+        //     }
+        // }
 
         Flasher::configure_fonts(cc);
         Flasher {

@@ -1,4 +1,4 @@
-use std::{io::Write, process::Command};
+use std::{io::Write, path::Path, process::Command};
 
 use libmtp_rs::{
     device::{raw::detect_raw_devices, MtpDevice, StorageSort},
@@ -101,25 +101,67 @@ impl Flasher {
             )
             .as_str(),
         );
-        // println!("{:?}", storage.files_and_folders(Parent::Root))
-        let path = std::path::Path::new("/home/spagett/hello.txt");
-        let file = std::fs::File::open(path).unwrap();
-        let metadata = file.metadata().unwrap();
-        let metadata = FileMetadata {
-            file_name: path.file_name().unwrap().to_str().unwrap(),
-            file_size: metadata.len(),
-            file_type: libmtp_rs::object::filetypes::Filetype::Text,
-            modification_date: metadata.modified().unwrap().into(),
-        };
+        if self.data.quilloadavailable {
+            let path = Path::new(&dirs::cache_dir().unwrap())
+                .join("QuillWrite")
+                .join("quilload");
 
-        let (_, storage) = storage_pool.iter().next().expect("No storage.");
-        storage
-            .send_file_from_path_with_callback(path, Parent::Root, metadata, |sent, total| {
-                print!("\rProgress {}/{}", sent, total);
-                std::io::stdout().lock().flush().expect("Failed to flush");
-                CallbackReturn::Continue
-            })
-            .unwrap();
-        // storage.send_file_from_path(path, Parent::Root, metadata);
+            let file = std::fs::File::open(path.clone()).unwrap();
+            let metadata = file.metadata().unwrap();
+            let mtp_metadata = FileMetadata {
+                file_name: path.file_name().unwrap().to_str().unwrap(),
+                file_size: metadata.len(),
+                file_type: libmtp_rs::object::filetypes::Filetype::Text,
+                modification_date: metadata.modified().unwrap().into(),
+            };
+
+            if let Some((_, storage)) = storage_pool.iter().next() {
+                let files = storage.files_and_folders(Parent::Root);
+                let mut quilload_already_present = false;
+                for file in files {
+                    if file.name() == "quilload" {
+                        quilload_already_present = true
+                    }
+                }
+                if !quilload_already_present {
+                    let path = Path::new(&dirs::cache_dir().unwrap())
+                        .join("QuillWrite")
+                        .join("quilload");
+                    if storage
+                        .send_file_from_path_with_callback(
+                            path,
+                            Parent::Root,
+                            mtp_metadata,
+                            |sent, total| {
+                                print!("\rProgress {}/{}", sent, total);
+                                std::io::stdout().lock().flush().expect("Failed to flush");
+                                CallbackReturn::Continue
+                            },
+                        )
+                        .is_err()
+                    {
+                        self.data
+                            .logs
+                            .push_str("QuillWrite: Could not write to device.\n")
+                    } else {
+                        self.data
+                            .logs
+                            .push_str("QuillWrite: Quilload has been successfully sent.\n")
+                    };
+                } else {
+                    self.data
+                        .logs
+                        .push_str("QuillWrite: Quilload is already on the device.\n")
+                }
+            } else {
+                self.data
+                    .logs
+                    .push_str("QuillWrite: Could not access storage.\n")
+            };
+        } else {
+            self.data
+                .logs
+                .push_str("QuillWrite: Could not find QuilLoad.\n")
+        }
     }
 }
