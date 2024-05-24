@@ -1,4 +1,10 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::mpsc::{self, Sender},
+    thread::{self, sleep},
+    time::Duration,
+};
 
 use crate::egui::{Color32, Rounding, Stroke};
 use eframe::{egui, CreationContext};
@@ -18,10 +24,13 @@ impl Default for FlasherPrefs {
 
 #[derive(Default)]
 struct FlasherData {
-    device: (String, String, u64),
+    device: (String, String, String),
+    mountpoint: PathBuf,
     logs: String,
-    devices: Vec<(String, String, u64)>,
+    devices: Vec<(String, String, String)>,
     quilloadavailable: bool,
+    quilloaded: bool,
+    tx: Option<Sender<bool>>,
 }
 
 #[derive(Default)]
@@ -55,38 +64,34 @@ impl Flasher {
                 device.to_string(),
                 info["deviceName"].to_string(),
                 info["productId"]
-                    .as_u64()
-                    .expect("Json file has invalid data"),
+                    .to_string()
             ));
         }
 
         let cache_dir = Path::new(&dirs::cache_dir().unwrap()).join("QuillWrite");
         let quilload_path = cache_dir.join("quilload");
         if cache_dir.exists() {
-            if quilload_path.exists() {
-                data.quilloadavailable = true;
-            } else {
-                data.quilloadavailable = false;
-            }
+            data.quilloadavailable = quilload_path.exists();
         } else {
             let _ = fs::create_dir_all(cache_dir);
             data.quilloadavailable = false;
         }
-        // if let Some(prodirs) = ProjectDirs::from("com", "Quill", "QuillWrite") {
-        //     let cache_dir = prodirs.cache_dir();
-        //     if Path::new(cache_dir).join("quilload").exists() {
-        //         println!("It exists.");
-        //         data.quilloadavailable = true;
-        //     } else if Path::new(cache_dir).exists() {
-        //         data.quilloadavailable = false;
-        //     } else {
-        //         if fs::create_dir_all(prodirs.cache_dir()).is_err() {
-        //             data.logs
-        //                 .push_str("QuillWrite: Could not make cache directory.\n")
-        //         }
-        //         data.quilloadavailable = false;
-        //     }
-        // }
+        data.quilloaded = false;
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || loop {
+            match rx.try_recv() {
+                Ok(_) => {
+                    sleep(Duration::from_secs(1));
+                    println!("recieved message");
+                }
+                Err(_) => {
+                    sleep(Duration::from_secs(1));
+                    // println!("message not recieved");
+                }
+            }
+        });
+        data.tx = Some(tx);
 
         Flasher::configure_fonts(cc);
         Flasher {
@@ -101,9 +106,13 @@ impl eframe::App for Flasher {
         // always repaint to have accurate device detection
         ctx.request_repaint();
         ctx.set_pixels_per_point(1.8);
-
         Flasher::render_header(self, ctx);
-        Flasher::render_main_panel(self, ctx);
+
+        if !self.data.quilloaded {
+            Flasher::panel_pre_send(self, ctx);
+        } else {
+            Flasher::panel_post_send(self, ctx);
+        }
     }
 }
 

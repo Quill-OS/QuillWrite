@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = "0.26.2"
+eframe = "0.27.2"
 confy = "0.6.1"
 serde = "1.0.197"
 serde_json = "1.0.66"
-rusb = "0.9.3"
-libmtp-rs = "0.7.7"
+block-utils = "0.11.1"
 dirs = "5.0.1"
+message-io = "0.18"

@@ -37,8 +37,8 @@
         "deviceName":"Kobo Nia model C",
         "productId":4230
     },
-    "FLAME": { 
-        "deviceName":"Google Pixel 4 (for testing only)",
-        "productId":20193
+    "N428": { 
+        "deviceName":"Kobo Libra Colour",
+        "productId":4237
     }
 }

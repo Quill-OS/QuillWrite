@@ -3,7 +3,7 @@ use eframe::egui::{self, CentralPanel};
 use crate::Flasher;
 
 impl Flasher {
-    pub fn render_main_panel(&mut self, ctx: &egui::Context) {
+    pub fn panel_pre_send(&mut self, ctx: &egui::Context) {
         CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.visuals_mut().widgets.active.bg_stroke = eframe::epaint::Stroke {
@@ -35,10 +35,16 @@ impl Flasher {
                     println!("{:?}", self.data.devices);
                     println!("{:?}", self.data.device)
                 }
-                if ui.button("Print mtp devices to console.").clicked() {
+                if ui.button("Print connected devices to console.").clicked() {
                     Flasher::transmit_payload(self);
                 }
             });
+            if ui.button("send message to thread.").clicked() {
+                self.data.tx.as_mut().unwrap().send(true).unwrap();
+            }
         });
+    }
+    pub fn panel_post_send(&mut self, ctx: &egui::Context) {
+        CentralPanel::default().show(ctx, |ui| ui.label("Watching for device."));
     }
 }
