@@ -2,13 +2,15 @@ use std::{
     fs::{self, File},
     net::TcpListener,
     path::{Path, PathBuf},
-    sync::mpsc::{self, Sender},
-    thread::{self, sleep},
-    time::Duration,
+    sync::mpsc::{self, Receiver, Sender},
+    thread,
 };
 
 use crate::egui::{Color32, Rounding, Stroke};
-use eframe::{egui, CreationContext};
+use eframe::{
+    egui::{self, TextBuffer},
+    CreationContext,
+};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use serde::{Deserialize, Serialize};
 use tar::Archive;
@@ -34,7 +36,7 @@ struct FlasherData {
     devices: Vec<(String, String, String)>,
     quilloadavailable: bool,
     quilloaded: bool,
-    tx: Option<Sender<bool>>,
+    rx: Option<Receiver<bool>>,
 }
 
 #[derive(Default)]
@@ -82,10 +84,14 @@ impl Flasher {
         data.cache_path = cache_dir;
         data.quilloaded = false;
 
-        if Flasher::prepare_payload(&mut data.cache_path.clone()).is_err() {
-            eprintln!(
-                "please make sure you have NickelDBus, quilload and NickelMenu in the cache dir"
-            )
+        if let Err(err) = Flasher::prepare_payload(&mut data.cache_path.clone()) {
+            if err.as_str().to_lowercase().contains("Could") {
+                data.logs
+                    .push_str(format!("{:?}: This is likely a permissions issue", err).as_str());
+            } else if err.as_str().to_lowercase().contains("found") {
+                data.logs
+                    .push_str(format!("{:?}: It is likely not downloaded, attempting to fetch.", err).as_str());
+            }
         }
 
         let (tx, rx) = mpsc::channel();
@@ -112,7 +118,7 @@ impl Flasher {
                 }
             }
         });
-        data.tx = Some(tx);
+        data.rx = Some(rx);
 
         Flasher::configure_fonts(cc);
         Flasher {
@@ -120,40 +126,82 @@ impl Flasher {
             data,
         }
     }
-    fn prepare_payload(cache_path: &mut PathBuf) -> Result<(), std::io::Error> {
-        // Remove existing old koboroot files
-        fs::remove_dir_all(cache_path.join("KoboRoot"));
-        fs::remove_dir_all(cache_path.join("KoboRoot.tgz"));
-        // Open tar archives
-        let nickle_menu = File::open(cache_path.join("NickelMenu.tgz"))?;
-        let nickle_dbus = File::open(cache_path.join("NickelDBus.tgz"))?;
+    fn download_dependancies(cache_path: &mut PathBuf, dep: String) {
 
+    }
+    fn prepare_payload(cache_path: &mut PathBuf) -> Result<(), &'static str> {
+        // Remove existing old koboroot files
+        let koboroot_dir = cache_path.join("KoboRoot");
         let quilload = cache_path.join("quilload");
-        // Make future koboroot folder
-        fs::create_dir(cache_path.join("KoboRoot"))?;
-        // Decompress archives
-        let nickle_menu_tar = GzDecoder::new(nickle_menu);
-        let nickle_dbus_tar = GzDecoder::new(nickle_dbus);
-        // Define archives
-        let mut nickel_menu_archive = Archive::new(nickle_menu_tar);
-        let mut nickel_dbus_archive = Archive::new(nickle_dbus_tar);
-        // Extract archives
-        nickel_menu_archive.unpack(cache_path.join("KoboRoot"))?;
-        nickel_dbus_archive.unpack(cache_path.join("KoboRoot"))?;
-        // Move quilload into future archive
-        fs::copy(
-            quilload,
-            cache_path
-                .join("KoboRoot")
-                .join("usr")
-                .join("bin")
-                .join("quilload"),
-        )?;
-        // Create new tarball
-        let koboroot = File::create(cache_path.join("KoboRoot.tgz"))?;
-        let encryption = GzEncoder::new(koboroot, Compression::fast());
-        let mut tar = tar::Builder::new(encryption);
-        tar.append_dir_all("", cache_path.join("KoboRoot"))?;
+        if fs::remove_dir_all(&koboroot_dir).is_ok() || !koboroot_dir.exists() {
+            if fs::remove_file(cache_path.join("KoboRoot.tgz")).is_ok()
+                || !cache_path.join("KoboRoot.tgz").exists()
+            {
+                // Open tar archives
+                if let Ok(nickle_menu) = File::open(cache_path.join("NickelMenu.tgz")) {
+                    if let Ok(nickle_dbus) = File::open(cache_path.join("NickelDBus.tgz")) {
+                        // Make future koboroot folder
+                        if koboroot_dir.exists() || fs::create_dir(&koboroot_dir).is_ok() {
+                            // Decompress archives
+                            let nickle_menu_tar = GzDecoder::new(nickle_menu);
+                            let nickle_dbus_tar = GzDecoder::new(nickle_dbus);
+                            // Define archives
+                            let mut nickel_menu_archive = Archive::new(nickle_menu_tar);
+                            let mut nickel_dbus_archive = Archive::new(nickle_dbus_tar);
+                            // Extract archives
+                            if nickel_menu_archive.unpack(&koboroot_dir).is_ok() {
+                                if nickel_dbus_archive.unpack(&koboroot_dir).is_ok() {
+                                    // Move quilload into future archive
+                                    if fs::copy(
+                                        quilload,
+                                        cache_path
+                                            .join("KoboRoot")
+                                            .join("usr")
+                                            .join("bin")
+                                            .join("quilload"),
+                                    )
+                                    .is_ok()
+                                    {
+                                        // Create new tarball
+                                        if let Ok(koboroot) =
+                                            File::create(cache_path.join("KoboRoot.tgz"))
+                                        {
+                                            let encryption =
+                                                GzEncoder::new(koboroot, Compression::fast());
+                                            let mut tar = tar::Builder::new(encryption);
+                                            if tar
+                                                .append_dir_all("", cache_path.join("KoboRoot"))
+                                                .is_err()
+                                            {
+                                                return Err("Could not put files into tar archive");
+                                            }
+                                        } else {
+                                            return Err("Could not create KoboRoot.tgz");
+                                        }
+                                    } else {
+                                        return Err("Could not place quilload into KoboRoot");
+                                    }
+                                } else {
+                                    return Err("Could not extract NDBus archive to KoboRoot");
+                                }
+                            } else {
+                                return Err("Could not extract NM archive to KoboRoot");
+                            }
+                        } else {
+                            return Err("KoboRoot does not exist and could not be made");
+                        }
+                    } else {
+                        return Err("NickelDBus.tgz not found");
+                    }
+                } else {
+                    return Err("NickelMenu.tgz not found");
+                };
+            } else {
+                return Err("Could not remove KoboRoot.tgz file");
+            }
+        } else {
+            return Err("Could not remove KoboRoot directory");
+        }
         Ok(())
     }
 }

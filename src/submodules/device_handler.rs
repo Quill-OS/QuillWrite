@@ -1,5 +1,4 @@
-use std::error::Error;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 
 use block_utils::{get_block_dev_property, get_block_devices, get_mountpoint};
