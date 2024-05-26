@@ -1,1 +1,0 @@
-menu_item :main    :QuilLoad           :cmd_spawn          :/usr/local/bin/quilload >> /mnt/onboard/.adds/quilload.log
