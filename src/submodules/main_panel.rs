@@ -31,15 +31,12 @@ impl Flasher {
                         });
                 });
 
-                if ui.button("Print device list to console.").clicked() {
-                    println!("{:?}", self.data.devices);
-                    println!("{:?}", self.data.device)
-                }
-                if ui.button("Print connected devices to console.").clicked() {
-                    Flasher::transmit_payload(self);
-                }
-                if ui.button("Install NickelMenu.").clicked() {
-                    Flasher::install_nickelmenu(self);
+                if ui.button("Install QuilLoad to ereader.").clicked() {
+                    if Flasher::transmit_payload(self).is_ok() {
+                        self.data.quilloaded = true;
+                    } else {
+                        self.data.quilloaded = false;
+                    }
                 }
             });
             if ui.button("send message to thread.").clicked() {

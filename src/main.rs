@@ -81,11 +81,15 @@ impl Flasher {
         }
         data.cache_path = cache_dir;
         data.quilloaded = false;
+
         if Flasher::prepare_payload(&mut data.cache_path.clone()).is_err() {
-            eprintln!("please make sure you have NickelDBus, quilload and NickelMenu in the cache dir")
+            eprintln!(
+                "please make sure you have NickelDBus, quilload and NickelMenu in the cache dir"
+            )
         }
 
         let (tx, rx) = mpsc::channel();
+        // Server for recieving backup
         thread::spawn(move || {
             if let Ok(listener) = TcpListener::bind("0.0.0.0:3333") {
                 for stream in listener.incoming() {
@@ -137,7 +141,14 @@ impl Flasher {
         nickel_menu_archive.unpack(cache_path.join("KoboRoot"))?;
         nickel_dbus_archive.unpack(cache_path.join("KoboRoot"))?;
         // Move quilload into future archive
-        fs::copy(quilload, cache_path.join("KoboRoot").join("usr").join("bin").join("quilload"))?;
+        fs::copy(
+            quilload,
+            cache_path
+                .join("KoboRoot")
+                .join("usr")
+                .join("bin")
+                .join("quilload"),
+        )?;
         // Create new tarball
         let koboroot = File::create(cache_path.join("KoboRoot.tgz"))?;
         let encryption = GzEncoder::new(koboroot, Compression::fast());
@@ -154,10 +165,10 @@ impl eframe::App for Flasher {
         ctx.set_pixels_per_point(1.8);
         Flasher::render_header(self, ctx);
 
-        if !self.data.quilloaded {
-            Flasher::panel_pre_send(self, ctx);
-        } else {
+        if self.data.quilloaded {
             Flasher::panel_post_send(self, ctx);
+        } else {
+            Flasher::panel_pre_send(self, ctx);
         }
     }
 }

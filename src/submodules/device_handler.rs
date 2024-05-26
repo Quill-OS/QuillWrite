@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 
@@ -48,14 +49,7 @@ impl Flasher {
         }
     }
 
-    pub fn transmit_payload(&mut self) {
-        self.detect_devices();
-
-        println!("{:?}", self.data.device);
-        println!("{:?}", self.data.mountpoint);
-        // move quilload to device
-    }
-    pub fn install_nickelmenu(&mut self) {
+    pub fn transmit_payload(&mut self) -> Result<(), &'static str> {
         self.detect_devices();
         let path = self.data.mountpoint.join(".kobo");
         println!("{:?}", path);
@@ -65,15 +59,11 @@ impl Flasher {
         )
         .is_err()
         {
-            self.data
-                .logs
-                .push_str("QuillWrite: Could not load nickelmenu onto device.\n")
+            return Err("QuillWrite: Could not push payload onto device.\n");
         }
         let config_folder_path = self.data.mountpoint.join(".adds").join("nm");
-        if fs::create_dir_all(&config_folder_path).is_err() {
-            self.data
-                .logs
-                .push_str("QuillWrite: Could not make nickelmenu path.\n")
+        if !config_folder_path.exists() && fs::create_dir_all(&config_folder_path).is_err() {
+            return Err("QuillWrite: Could not make nickelmenu config path.\n");
         }
         let config_path = config_folder_path.join("config");
         if fs::read_to_string(&config_path).is_ok_and(|string| string.contains("quilload")) {
@@ -88,10 +78,9 @@ impl Flasher {
                 .open(config_path)
                 .unwrap();
             if write!(config_file, "menu_item :main    :QuilLoad           :cmd_spawn          :/usr/bin/quilload >> /mnt/onboard/.adds/quilload.log\n").is_err() {
-                    self.data
-                .logs
-                .push_str("QuillWrite: Could not add to config file.\n")
+                return Err("QuillWrite: Could not add entry to nickelmenu config file.\n")
+            }
         }
-        }
+        return Ok(());
     }
 }
