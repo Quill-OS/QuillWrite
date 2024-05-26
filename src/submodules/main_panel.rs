@@ -39,9 +39,6 @@ impl Flasher {
                     }
                 }
             });
-            if ui.button("send message to thread.").clicked() {
-                self.data.tx.as_mut().unwrap().send(true).unwrap();
-            }
         });
     }
     pub fn panel_post_send(&mut self, ctx: &egui::Context) {
