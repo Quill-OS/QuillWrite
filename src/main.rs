@@ -1,12 +1,14 @@
 use std::{
     fs::{self, File},
+    io::Write,
     net::TcpListener,
     path::{Path, PathBuf},
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver},
     thread,
 };
 
 use crate::egui::{Color32, Rounding, Stroke};
+use curl::easy::Easy;
 use eframe::{
     egui::{self, TextBuffer},
     CreationContext,
@@ -83,16 +85,7 @@ impl Flasher {
         }
         data.cache_path = cache_dir;
         data.quilloaded = false;
-
-        if let Err(err) = Flasher::prepare_payload(&mut data.cache_path.clone()) {
-            if err.as_str().to_lowercase().contains("Could") {
-                data.logs
-                    .push_str(format!("{:?}: This is likely a permissions issue", err).as_str());
-            } else if err.as_str().to_lowercase().contains("found") {
-                data.logs
-                    .push_str(format!("{:?}: It is likely not downloaded, attempting to fetch.", err).as_str());
-            }
-        }
+        Flasher::prepare_payload(&mut data);
 
         let (tx, rx) = mpsc::channel();
         // Server for recieving backup
@@ -126,10 +119,88 @@ impl Flasher {
             data,
         }
     }
-    fn download_dependancies(cache_path: &mut PathBuf, dep: String) {
-
+    fn download_dependancies(
+        cache_path: &mut PathBuf,
+        dep: &'static str,
+    ) -> Result<(), &'static str> {
+        let (depurl, file) = if dep == "NickelMenu" {
+            (
+                "https://github.com/pgaskin/NickelMenu/releases/download/v0.5.4/KoboRoot.tgz",
+                File::create(cache_path.join("NickelMenu.tgz")),
+            )
+        } else {
+            (
+                "https://github.com/shermp/NickelDBus/actions/runs/8863931069/artifacts/1453892074",
+                File::create(cache_path.join("NickelDBus.tgz")),
+            )
+        };
+        // if let Ok(mut tarfile) = file {
+        let mut tarfile = file.unwrap();
+        let mut transfer_handler = Easy::new();
+        transfer_handler.follow_location(true).unwrap();
+        transfer_handler.url(depurl).unwrap();
+        transfer_handler
+            .write_function(move |data| {
+                tarfile.write_all(data).unwrap();
+                Ok(data.len())
+            })
+            .unwrap();
+        transfer_handler.perform().unwrap();
+        println!("{}", transfer_handler.response_code().unwrap());
+        // }
+        //         // if transfer_handler.url(depurl).is_ok() {
+        //         transfer_handler.write_function(|data| {
+        //                 tarfile.write_all(data).unwrap();
+        //             }
+        //             Ok(data.len())
+        //
+        //         });
+        // }
+        // let mut Ok(file) =
+        // transfer_handler.write_function(|data| {
+        //
+        // })
+        // } else {
+        // return Err("Could not contact url.");
+        // }
+        Ok(())
     }
-    fn prepare_payload(cache_path: &mut PathBuf) -> Result<(), &'static str> {
+    fn prepare_payload(data: &mut FlasherData) {
+        if let Err(err) = Flasher::make_payload(&mut data.cache_path.clone()) {
+            if err.as_str().to_lowercase().contains("Could") {
+                data.logs
+                    .push_str(format!("{:?}: This is likely a permissions issue", err).as_str());
+            } else if err.as_str().to_lowercase().contains("found") {
+                data.logs.push_str(
+                    format!(
+                        "{:?}: It is likely not downloaded, attempting to fetch.",
+                        err
+                    )
+                    .as_str(),
+                );
+                if err.as_str().contains("NickelMenu") {
+                    if let Err(err) =
+                        Flasher::download_dependancies(&mut data.cache_path, "NickelMenu")
+                    {
+                        data.logs
+                            .push_str(format!("Could not download NickelMenu: {:?}", err).as_str())
+                    }
+                    Flasher::prepare_payload(data);
+                } else if err.as_str().contains("NickelDBus") {
+                        data.logs
+                            .push_str("Can not download NickelMenu as it is a github artifact.");
+                    // if let Err(err) =
+                        // Flasher::download_dependancies(&mut data.cache_path, "NickelDBus")
+                    // {
+                    //     data.logs
+                    //         .push_str(format!("Could not download NickelMenu: {:?}", err).as_str())
+                    // }
+                    // Flasher::prepare_payload(data);
+                }
+            }
+        }
+    }
+    fn make_payload(cache_path: &mut PathBuf) -> Result<(), &'static str> {
         // Remove existing old koboroot files
         let koboroot_dir = cache_path.join("KoboRoot");
         let quilload = cache_path.join("quilload");
