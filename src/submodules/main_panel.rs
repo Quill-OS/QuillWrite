@@ -38,6 +38,9 @@ impl Flasher {
                 if ui.button("Print connected devices to console.").clicked() {
                     Flasher::transmit_payload(self);
                 }
+                if ui.button("Install NickelMenu.").clicked() {
+                    Flasher::install_nickelmenu(self);
+                }
             });
             if ui.button("send message to thread.").clicked() {
                 self.data.tx.as_mut().unwrap().send(true).unwrap();

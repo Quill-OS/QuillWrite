@@ -1,0 +1,12 @@
+[package]
+name = "quilload"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+message-io = "0.18.1"
+serde = { version = "1.0.202", features = ["derive"] }
+flate2 = "1.0.30"
+# zstd = "0.13.1"
+# zstd-sys = { version = "2.0.10", default-features = false }
+# lz4 = { version = "1.24.0", default-features = false }
