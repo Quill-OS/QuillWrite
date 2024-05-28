@@ -90,7 +90,7 @@ impl Flasher {
         let (tx, rx) = mpsc::channel();
         // Server for recieving backup
         thread::spawn(move || {
-            if let Ok(listener) = TcpListener::bind("0.0.0.0:3333") {
+            if let Ok(listener) = TcpListener::bind("0.0.0.0:33") {
                 for stream in listener.incoming() {
                     match stream {
                         Ok(mut stream) => {
@@ -104,11 +104,13 @@ impl Flasher {
                             });
                         }
                         Err(e) => {
-                            println!("Error: {}", e);
+                            eprintln!("Error: {}", e);
                             /* connection failed */
                         }
                     }
                 }
+            } else {
+                eprintln!("Device is not connected to the internet");
             }
         });
         data.rx = Some(rx);
@@ -187,10 +189,10 @@ impl Flasher {
                     }
                     Flasher::prepare_payload(data);
                 } else if err.as_str().contains("NickelDBus") {
-                        data.logs
-                            .push_str("Can not download NickelMenu as it is a github artifact.");
+                    data.logs
+                        .push_str("Can not download NickelMenu as it is a github artifact.");
                     // if let Err(err) =
-                        // Flasher::download_dependancies(&mut data.cache_path, "NickelDBus")
+                    // Flasher::download_dependancies(&mut data.cache_path, "NickelDBus")
                     // {
                     //     data.logs
                     //         .push_str(format!("Could not download NickelMenu: {:?}", err).as_str())

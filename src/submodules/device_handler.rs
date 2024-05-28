@@ -1,5 +1,6 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::path::Path;
 
 use block_utils::{get_block_dev_property, get_block_devices, get_mountpoint};
 
@@ -79,6 +80,38 @@ impl Flasher {
             if write!(config_file, "menu_item :main    :QuilLoad           :cmd_spawn          :/usr/bin/quilload >> /mnt/onboard/.adds/quilload.log\n").is_err() {
                 return Err("QuillWrite: Could not add entry to nickelmenu config file.\n")
             }
+        }
+        if self
+            .data
+            .mountpoint
+            .join(".adds")
+            .join("quillconfig")
+            .exists()
+            || fs::create_dir(self.data.mountpoint.join(".adds").join("quillconfig")).is_ok()
+        {
+            let mut ip_addr_file_handler = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(
+                    &self
+                        .data
+                        .mountpoint
+                        .join(".adds")
+                        .join("quillconfig")
+                        .join("ip_address.conf"),
+                )
+                .unwrap();
+            if let Ok(local_ip) = local_ip_address::local_ip() {
+                if write!(ip_addr_file_handler, "{}", local_ip.to_string()).is_err() {
+                    self.data.logs.push_str("QuillWrite: Could not write local ip address.\n")
+                }
+            } else {
+                self.data
+                    .logs
+                    .push_str("QuillWrite: Not connected to a network.\n")
+            }
+        } else {
+            return Err("QuillWrite: Could not make the quillconfig folder.\n");
         }
         return Ok(());
     }
