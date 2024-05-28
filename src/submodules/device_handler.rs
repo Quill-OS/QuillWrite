@@ -1,6 +1,5 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::Path;
 
 use block_utils::{get_block_dev_property, get_block_devices, get_mountpoint};
 
@@ -16,7 +15,7 @@ impl Flasher {
                         if id.is_some() {
                             let id = id.unwrap();
                             for allowed_device in &self.data.devices {
-                                if allowed_device.2.to_string() == id {
+                                if allowed_device.2 == id {
                                     if let Ok(dev) = get_mountpoint(device_path.clone()) {
                                         if let Some(mountpoint) = dev {
                                             println!("{:?}", mountpoint);
@@ -73,11 +72,10 @@ impl Flasher {
         } else {
             let mut config_file = OpenOptions::new()
                 .create(true)
-                .write(true)
                 .append(true)
                 .open(config_path)
                 .unwrap();
-            if write!(config_file, "menu_item :main    :QuilLoad           :cmd_spawn          :/usr/bin/quilload >> /mnt/onboard/.adds/quilload.log\n").is_err() {
+            if writeln!(config_file, "menu_item :main    :QuilLoad           :cmd_spawn          :/usr/bin/quilload >> /mnt/onboard/.adds/quilload.log").is_err() {
                 return Err("QuillWrite: Could not add entry to nickelmenu config file.\n")
             }
         }
@@ -91,10 +89,10 @@ impl Flasher {
         {
             let mut ip_addr_file_handler = OpenOptions::new()
                 .create(true)
+                .truncate(true)
                 .write(true)
                 .open(
-                    &self
-                        .data
+                    self.data
                         .mountpoint
                         .join(".adds")
                         .join("quillconfig")
@@ -102,8 +100,10 @@ impl Flasher {
                 )
                 .unwrap();
             if let Ok(local_ip) = local_ip_address::local_ip() {
-                if write!(ip_addr_file_handler, "{}", local_ip.to_string()).is_err() {
-                    self.data.logs.push_str("QuillWrite: Could not write local ip address.\n")
+                if write!(ip_addr_file_handler, "{}", local_ip).is_err() {
+                    self.data
+                        .logs
+                        .push_str("QuillWrite: Could not write local ip address.\n")
                 }
             } else {
                 self.data
@@ -113,6 +113,6 @@ impl Flasher {
         } else {
             return Err("QuillWrite: Could not make the quillconfig folder.\n");
         }
-        return Ok(());
+        Ok(())
     }
 }

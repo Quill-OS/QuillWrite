@@ -87,7 +87,7 @@ impl Flasher {
         data.quilloaded = false;
         Flasher::prepare_payload(&mut data);
 
-        let (tx, rx) = mpsc::channel();
+        let (_tx, rx) = mpsc::channel();
         // Server for recieving backup
         thread::spawn(move || {
             if let Ok(listener) = TcpListener::bind("0.0.0.0:33") {
@@ -121,10 +121,7 @@ impl Flasher {
             data,
         }
     }
-    fn download_dependancies(
-        cache_path: &mut PathBuf,
-        dep: &'static str,
-    ) -> Result<(), &'static str> {
+    fn download_dependancies(cache_path: &mut Path, dep: &'static str) -> Result<(), &'static str> {
         let (depurl, file) = if dep == "NickelMenu" {
             (
                 "https://github.com/pgaskin/NickelMenu/releases/download/v0.5.4/KoboRoot.tgz",
@@ -202,7 +199,7 @@ impl Flasher {
             }
         }
     }
-    fn make_payload(cache_path: &mut PathBuf) -> Result<(), &'static str> {
+    fn make_payload(cache_path: &mut Path) -> Result<(), &'static str> {
         // Remove existing old koboroot files
         let koboroot_dir = cache_path.join("KoboRoot");
         let quilload = cache_path.join("quilload");

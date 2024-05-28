@@ -1,4 +1,4 @@
-use eframe::egui::{self, Button, CentralPanel, CollapsingHeader, Rounding, ScrollArea};
+use eframe::egui::{self, Button, CentralPanel, Rounding, ScrollArea};
 
 use crate::Flasher;
 
@@ -71,7 +71,7 @@ impl Flasher {
                                                 {
                                                     // ui.output().copied_text = self.config.logs.clone();
                                                     ui.output_mut(|i| {
-                                                        i.copied_text = self.data.logs.clone()
+                                                        i.copied_text.clone_from(&self.data.logs)
                                                     });
                                                 }
                                             });
