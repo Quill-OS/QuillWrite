@@ -38,7 +38,7 @@ struct FlasherData {
     devices: Vec<(String, String, String)>,
     quilloadavailable: bool,
     quilloaded: bool,
-    rx: Option<Receiver<bool>>,
+    transfer_started: Option<Receiver<bool>>,
 }
 
 #[derive(Default)]
@@ -87,14 +87,16 @@ impl Flasher {
         data.quilloaded = false;
         Flasher::prepare_payload(&mut data);
 
-        let (_tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
         // Server for recieving backup
         thread::spawn(move || {
-            if let Ok(listener) = TcpListener::bind("0.0.0.0:33") {
+            tx.send(false).unwrap();
+            if let Ok(listener) = TcpListener::bind("0.0.0.0:3333") {
                 for stream in listener.incoming() {
                     match stream {
                         Ok(mut stream) => {
                             println!("New connection: {}", stream.peer_addr().unwrap());
+                            tx.send(true).unwrap();
                             thread::spawn(move || {
                                 // connection succeeded
                                 let mut file = File::create("/home/spagett/backup.dd.gz").unwrap();
@@ -113,7 +115,7 @@ impl Flasher {
                 eprintln!("Device is not connected to the internet");
             }
         });
-        data.rx = Some(rx);
+        data.transfer_started = Some(rx);
 
         Flasher::configure_fonts(cc);
         Flasher {

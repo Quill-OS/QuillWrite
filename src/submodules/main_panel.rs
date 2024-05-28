@@ -1,4 +1,7 @@
+use std::net::IpAddr;
+
 use eframe::egui::{self, Button, CentralPanel, Rounding, ScrollArea};
+use local_ip_address::linux::local_ip;
 
 use crate::Flasher;
 
@@ -96,6 +99,21 @@ impl Flasher {
         });
     }
     pub fn panel_post_send(&mut self, ctx: &egui::Context) {
-        CentralPanel::default().show(ctx, |ui| ui.label("Watching for device."));
+        CentralPanel::default().show(ctx, |ui| {
+            // if !self
+            //     .data
+            //     .transfer_started
+            //     .as_ref()
+            //     .unwrap()
+            //     .recv()
+            //     .unwrap()
+            // {
+            // ui.label("Watching for device.");
+            let local_ip_addr = format!("This devices IP adress is {}.", local_ip().unwrap());
+            ui.label(local_ip_addr);
+            // } else {
+            //     ui.label("Device Connected.");
+            // }
+        });
     }
 }

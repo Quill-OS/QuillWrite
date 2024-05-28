@@ -1,5 +1,10 @@
 use core::panic;
-use std::{fs::File, io::copy, net::TcpStream, process::Command};
+use std::{
+    fs::{self, File},
+    io::copy,
+    net::TcpStream,
+    process::Command,
+};
 
 use flate2::Compression;
 
@@ -44,7 +49,11 @@ fn main() {
     }
 }
 fn send_backup() {
-    match TcpStream::connect("192.168.0.108:3333") {
+    let mut quillwrite_ip_address =
+        fs::read_to_string("/mnt/onboard/.adds/quillconfig/ip_address.conf")
+            .unwrap_or(String::from("0.0.0.0"));
+    quillwrite_ip_address.push_str(":3333");
+    match TcpStream::connect(quillwrite_ip_address) {
         Ok(mut stream) => {
             println!("Successfully connected to server on port 3333");
             if let Ok(file) = File::open("/dev/mmcblk0") {
